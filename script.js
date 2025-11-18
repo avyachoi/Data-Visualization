@@ -345,7 +345,9 @@ function drawWateringCan() {
 function drawLegend() {
   const legendWidth = 260;
   const legendHeight = 170;
-  const x = width - legendWidth - 24;
+
+  // bottom-left with padding
+  const x = 24;
   const y = height - legendHeight - 24;
 
   // card background
@@ -400,8 +402,6 @@ function drawLegend() {
   lineY += 16;
   text("• Hold = full journal entry", x + 14, lineY);
 
-  // restore center alignment for main drawing
+  // restore for main drawing
   textAlign(CENTER, CENTER);
 }
-
-
