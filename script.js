@@ -15,12 +15,12 @@ let pressedPlant = null;
 const LONG_PRESS_MS = 700;
 
 // images
-let plantImages = {};      // keyed by Number (1..10)
+let plantImages = {};      // keyed by Number
 let wateringCanImg = null;
 
 // preload images
 function preload() {
-  // plant images: plant1.png, plant2.png, ... plant10.png
+  // plant images
   for (let i = 1; i <= 10; i++) {
     plantImages[i] = loadImage(
       `plant${i}.png`,
@@ -44,7 +44,7 @@ function setup() {
   textFont("system-ui, -apple-system, BlinkMacSystemFont, sans-serif");
   textAlign(CENTER, CENTER);
 
-  noCursor(); // hide default cursor; we’ll draw the watering can
+  noCursor(); // hide default cursor
 
   loadPlantData();
 }
@@ -63,7 +63,7 @@ function draw() {
   fill(210, 232, 220, 80); // pale green, transparent
   ellipse(width / 2, height / 2, width * 0.9, height * 0.9);
 
-  // title / subtitle
+  // title and subtitle
   fill(51, 65, 85); // slate-ish
   textSize(20);
   text("The Garden That Remembers", width / 2, 40);
@@ -86,7 +86,7 @@ function draw() {
 
   hoveredPlant = null;
 
-  // ---- LAYOUT: vertical zigzag path in Number order ----
+  //vertical zigzag path in Number order ----
   const n = plants.length;
 
   const topMargin = 120;
@@ -107,17 +107,17 @@ function draw() {
   const leftX = width * 0.28;
   const rightX = width * 0.72;
 
-  // assign positions in array order (already sorted by Number)
+  // assign positions in array order
   plants.forEach((p, i) => {
     const y = topMargin + stepY * i;
-    const x = i % 2 === 0 ? leftX : rightX; // zigzag: left, right, left...
+    const x = i % 2 === 0 ? leftX : rightX; // zigzag 0 if i is even, 1 if i is odd
 
     p.screenX = x;
     p.screenY = y;
   });
 
-  // ---- VINE: straight lines between plants ----
-  stroke(148, 163, 184, 180); // gentle gray-blue
+  //straight lines between plants
+  stroke(148, 163, 184, 180); // gray-blue
   strokeWeight(2.5);
   noFill();
   for (let i = 0; i < n - 1; i++) {
@@ -126,7 +126,7 @@ function draw() {
     line(a.screenX, a.screenY, b.screenX, b.screenY);
   }
 
-  // ---- Draw plants (images) on top ----
+  //Draw plants (images) on top
   imageMode(CENTER);
   plants.forEach((p) => {
     const x = p.screenX;
@@ -195,7 +195,7 @@ function draw() {
   drawWateringCan();
 }
 
-// ---- Interaction helpers ----
+
 
 function getPlantUnderMouse() {
   let hit = null;
@@ -224,7 +224,7 @@ function mouseReleased() {
   const plantUnderMouse = getPlantUnderMouse();
 
   if (pressedPlant && plantUnderMouse && pressedPlant === plantUnderMouse) {
-    // click or long-press on a plant
+    // click or long press on a plant
     activePlant = pressedPlant;
     if (duration >= LONG_PRESS_MS) {
       tooltipMode = "full";    // long hold → full entry
@@ -239,47 +239,48 @@ function mouseReleased() {
   pressedPlant = null;
 }
 
-// ---- D3 data load ----
+//  D3 data load 
 async function loadPlantData() {
   const data = await d3.csv("plantdata.csv", d3.autoType);
   console.log("raw data:", data);
 
-  // sort by Number ascending (1..10)
+  // sort by Number ascending 
   const sorted = data.slice().sort((a, b) => a.Number - b.Number);
 
+  
   plants = sorted.map((d) => {
-    let gp = d["% of Grief"];
+    let gp = d["% of Grief"]; //pulls string 
     if (typeof gp === "string") {
-      gp = parseFloat(gp); // handles "10.00%"
+      gp = parseFloat(gp); // turns percent into number
     }
     return {
-      ...d,
-      griefPercent: gp,
+      ...d, //copies original fields
+      griefPercent: gp, // clean numeric field
     };
   });
 
   dataLoaded = true;
 }
 
-// ---- pastel color mapping for grief stages ----
+//  pastel color mapping for grief stages 
 function stageToColor(stage) {
   switch (stage?.toLowerCase()) {
     case "denial":
-      return color(165, 199, 255); // soft sky blue
+      return color(165, 199, 255); // blue
     case "anger":
-      return color(255, 179, 163); // pastel coral
+      return color(255, 179, 163); //  coral
     case "bargaining":
-      return color(159, 230, 195); // mint green
+      return color(159, 230, 195); //  green
     case "depression":
       return color(196, 181, 253); // lavender
     case "acceptance":
-      return color(253, 230, 138); // butter yellow
+      return color(253, 230, 138); // yellow
     default:
       return color(209, 213, 219); // neutral gray
   }
 }
 
-// ---- tooltip content + positioning ----
+//  tooltip content and positioning 
 function updateTooltip() {
   const tooltip = document.getElementById("tooltip");
   if (!activePlant) {
@@ -288,7 +289,7 @@ function updateTooltip() {
   }
 
   tooltip.style.display = "block";
-
+//grab internal elemenets
   const nameEl = tooltip.querySelector(".plant-name");
   const stageEl = tooltip.querySelector(".stage");
   const snippetEl = tooltip.querySelector(".snippet");
@@ -297,7 +298,7 @@ function updateTooltip() {
 
   stageEl.textContent = `${activePlant["Grief Stage"]} • ${activePlant["% of Grief"]} grief processed`;
 
-  const full = activePlant["Journal Entry"] || "";
+  const full = activePlant["Journal Entry"] || ""; //whole journal entry
   let textContent;
 
   if (tooltipMode === "full") {
@@ -313,7 +314,7 @@ function updateTooltip() {
   const padding = 14;
   let x = activePlant.screenX + 24;
   let y = activePlant.screenY - 24;
-
+//if overflow, flip
   const rect = tooltip.getBoundingClientRect();
   if (x + rect.width + padding > window.innerWidth) {
     x = activePlant.screenX - rect.width - 24;
@@ -326,12 +327,12 @@ function updateTooltip() {
   tooltip.style.top = `${y}px`;
 }
 
-// ---- draw watering can cursor ----
+//  draw watering can cursor 
 function drawWateringCan() {
   if (wateringCanImg) {
     imageMode(CENTER);
     noTint();
-    const size = 80; // scale 700x700 down
+    const size = 80; // scale down
     image(wateringCanImg, mouseX, mouseY, size, size);
   } else {
     // fallback cursor
@@ -341,7 +342,7 @@ function drawWateringCan() {
   }
 }
 
-// ---- bottom-right guide / legend ----
+//  bottom right guide
 function drawLegend() {
   const legendWidth = 260;
   const legendHeight = 170;
@@ -386,7 +387,7 @@ function drawLegend() {
   text("• Larger plants = more grief processed", x + 14, lineY);
   lineY += 16;
 
-  // position & line
+  // position and line
   text("• Path from top to bottom = days 1–10", x + 14, lineY);
   lineY += 16;
 
