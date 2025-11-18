@@ -1,4 +1,4 @@
-console.log("✅ script.js loaded (zigzag path + images + interactions)");
+console.log("✅ script.js loaded (zigzag + guide + pastel)");
 
 let plants = [];
 let dataLoaded = false;
@@ -55,23 +55,21 @@ function windowResized() {
 }
 
 function draw() {
-  background(9, 9, 18);
+  // light pastel background
+  background(248, 250, 245);
 
-  // vignette
+  // soft subtle central wash
   noStroke();
-  for (let r = max(width, height); r > 0; r -= 50) {
-    let alpha = map(r, 0, max(width, height), 220, 0);
-    fill(15, 23, 42, alpha);
-    ellipse(width / 2, height / 2, r, r);
-  }
+  fill(210, 232, 220, 80); // pale green, transparent
+  ellipse(width / 2, height / 2, width * 0.9, height * 0.9);
 
   // title / subtitle
-  fill(226, 232, 240);
+  fill(51, 65, 85); // slate-ish
   textSize(20);
   text("The Garden That Remembers", width / 2, 40);
 
   textSize(12);
-  fill(148, 163, 184);
+  fill(100, 116, 139);
   text(
     "Follow the plant path. Hover to see them glow; click to hear them remember.",
     width / 2,
@@ -80,7 +78,7 @@ function draw() {
 
   if (!dataLoaded) {
     textSize(14);
-    fill(148, 163, 184);
+    fill(100, 116, 139);
     text("Loading plants...", width / 2, height / 2);
     drawWateringCan();
     return;
@@ -91,26 +89,26 @@ function draw() {
   // ---- LAYOUT: vertical zigzag path in Number order ----
   const n = plants.length;
 
-  const topMargin = 140;
-  const bottomMargin = 80;
+  const topMargin = 120;
+  const bottomMargin = 140; // leave space for legend
   const availableHeight = height - topMargin - bottomMargin;
   const stepY = n > 1 ? max(90, availableHeight / (n - 1)) : 0; // at least 90px apart
 
-  const leftX = width * 0.30;
-  const rightX = width * 0.70;
+  const leftX = width * 0.28;
+  const rightX = width * 0.72;
 
   // assign positions in array order (already sorted by Number)
   plants.forEach((p, i) => {
     const y = topMargin + stepY * i;
-    const x = (i % 2 === 0) ? leftX : rightX; // zigzag: left, right, left, right...
+    const x = i % 2 === 0 ? leftX : rightX; // zigzag: left, right, left...
 
     p.screenX = x;
     p.screenY = y;
   });
 
   // ---- VINE: straight lines between plants ----
-  stroke(56, 189, 248, 160); // soft cyan
-  strokeWeight(3);
+  stroke(148, 163, 184, 180); // gentle gray-blue
+  strokeWeight(2.5);
   noFill();
   for (let i = 0; i < n - 1; i++) {
     const a = plants[i];
@@ -124,18 +122,18 @@ function draw() {
     const x = p.screenX;
     const y = p.screenY;
 
-    // size from % of Grief
-    const size = map(p.griefPercent, 0, 70, 40, 90);
+    // size from % of Grief (0–70)
+    const size = map(p.griefPercent, 0, 70, 50, 100);
     p.drawSize = size;
 
     const c = stageToColor(p["Grief Stage"]);
 
     // glow behind image
     noStroke();
-    fill(red(c), green(c), blue(c), 60);
-    ellipse(x, y, size * 1.2, size * 1.2);
+    fill(red(c), green(c), blue(c), 80);
+    ellipse(x, y, size * 1.15, size * 1.15);
 
-    // detect hover first for tint
+    // detect hover for tint
     const d = dist(mouseX, mouseY, x, y);
     const isHovered = d < size * 0.5 + 6;
     if (isHovered) {
@@ -149,14 +147,14 @@ function draw() {
       // brighter on hover
       tint(255, 255, 255, 255);
     } else {
-      // slightly muted at rest
-      tint(230, 230, 230, 230);
+      // slightly softened at rest
+      tint(240, 240, 240, 235);
     }
 
     if (img) {
       image(img, x, y, size, size);
     } else {
-      // fallback: colored circle if image missing
+      // fallback: pastel circle if image missing
       noStroke();
       fill(red(c), green(c), blue(c), 220);
       ellipse(x, y, size * 0.6, size * 0.6);
@@ -165,7 +163,7 @@ function draw() {
 
     // label
     textSize(11);
-    fill(226, 232, 240, 230);
+    fill(51, 65, 85, 230);
     text(p["Plant Name"], x, y + size * 0.7);
   });
 
@@ -176,20 +174,19 @@ function draw() {
     const s = hoveredPlant.drawSize || 50;
 
     noFill();
-    stroke(248, 250, 252, 230);
+    stroke(148, 163, 184, 230);
     strokeWeight(2);
     ellipse(x, y, s * 1.1, s * 1.1);
     noStroke();
   }
 
   updateTooltip();
+  drawLegend();
   drawWateringCan();
 }
 
 // ---- Interaction helpers ----
 
-// Return plant under mouse (or null)
-// (used for click + hold detection)
 function getPlantUnderMouse() {
   let hit = null;
   plants.forEach((p) => {
@@ -254,21 +251,21 @@ async function loadPlantData() {
   dataLoaded = true;
 }
 
-// ---- color mapping for grief stages ----
+// ---- pastel color mapping for grief stages ----
 function stageToColor(stage) {
   switch (stage?.toLowerCase()) {
     case "denial":
-      return color(96, 165, 250); // blue
+      return color(165, 199, 255); // soft sky blue
     case "anger":
-      return color(248, 113, 113); // red
+      return color(255, 179, 163); // pastel coral
     case "bargaining":
-      return color(45, 212, 191); // teal
+      return color(159, 230, 195); // mint green
     case "depression":
-      return color(129, 140, 248); // indigo
+      return color(196, 181, 253); // lavender
     case "acceptance":
-      return color(250, 204, 21); // gold
+      return color(253, 230, 138); // butter yellow
     default:
-      return color(148, 163, 184); // neutral gray
+      return color(209, 213, 219); // neutral gray
   }
 }
 
@@ -298,21 +295,21 @@ function updateTooltip() {
   } else {
     // snippet
     textContent =
-      full.length > 200 ? full.slice(0, 197).trimEnd() + "..." : full;
+      full.length > 220 ? full.slice(0, 217).trimEnd() + "..." : full;
   }
   snippetEl.textContent = textContent;
 
   // position tooltip near plant
   const padding = 14;
-  let x = activePlant.screenX + 20;
-  let y = activePlant.screenY - 20;
+  let x = activePlant.screenX + 24;
+  let y = activePlant.screenY - 24;
 
   const rect = tooltip.getBoundingClientRect();
   if (x + rect.width + padding > window.innerWidth) {
-    x = activePlant.screenX - rect.width - 20;
+    x = activePlant.screenX - rect.width - 24;
   }
   if (y + rect.height + padding > window.innerHeight) {
-    y = activePlant.screenY - rect.height - 20;
+    y = activePlant.screenY - rect.height - 24;
   }
 
   tooltip.style.left = `${x}px`;
@@ -329,7 +326,74 @@ function drawWateringCan() {
   } else {
     // fallback cursor
     noStroke();
-    fill(248, 250, 252);
+    fill(55, 65, 81);
     ellipse(mouseX, mouseY, 6, 6);
   }
 }
+
+// ---- bottom-right guide / legend ----
+function drawLegend() {
+  const legendWidth = 260;
+  const legendHeight = 170;
+  const x = width - legendWidth - 24;
+  const y = height - legendHeight - 24;
+
+  // card background
+  noStroke();
+  fill(255, 255, 255, 235);
+  rect(x, y, legendWidth, legendHeight, 16);
+
+  // title
+  let prevAlignH = textAlignHoriz;
+  let prevAlignV = textAlignVert;
+
+  textAlign(LEFT, TOP);
+  fill(55, 65, 81);
+  textSize(12);
+  text("How to read this garden", x + 14, y + 12);
+
+  textSize(11);
+  fill(75, 85, 99);
+
+  let lineY = y + 32;
+
+  // color legend
+  const stages = ["denial", "anger", "bargaining", "depression", "acceptance"];
+  stages.forEach((stage, idx) => {
+    const cy = lineY + idx * 16;
+    const cx = x + 18;
+
+    const c = stageToColor(stage);
+    noStroke();
+    fill(c);
+    ellipse(cx, cy + 5, 10, 10);
+
+    fill(75, 85, 99);
+    text(stage.charAt(0).toUpperCase() + stage.slice(1), cx + 16, cy);
+  });
+
+  lineY += stages.length * 16 + 6;
+
+  // size = % of grief processed
+  fill(75, 85, 99);
+  text("• Larger plants = more grief processed", x + 14, lineY);
+  lineY += 16;
+
+  // position & line
+  text("• Path from top to bottom = days 1–10", x + 14, lineY);
+  lineY += 16;
+
+  text("• Line connecting them = your continuous journey", x + 14, lineY);
+  lineY += 18;
+
+  // interaction hint
+  text("• Hover = plant brightens", x + 14, lineY);
+  lineY += 16;
+  text("• Click = journal snippet", x + 14, lineY);
+  lineY += 16;
+  text("• Hold = full journal entry", x + 14, lineY);
+
+  // restore text alignment
+  textAlign(CENTER, CENTER);
+}
+
