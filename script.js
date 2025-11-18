@@ -1,4 +1,4 @@
-console.log("✅ script.js loaded (zigzag + guide + pastel)");
+console.log("✅ script.js loaded (zigzag + guide + pastel, fixed spacing)");
 
 let plants = [];
 let dataLoaded = false;
@@ -92,7 +92,17 @@ function draw() {
   const topMargin = 120;
   const bottomMargin = 140; // leave space for legend
   const availableHeight = height - topMargin - bottomMargin;
-  const stepY = n > 1 ? max(90, availableHeight / (n - 1)) : 0; // at least 90px apart
+
+  let stepY = 0;
+  if (n > 1) {
+    if (availableHeight > 0) {
+      // evenly distribute plants from topMargin to height - bottomMargin
+      stepY = availableHeight / (n - 1);
+    } else {
+      // if window is super tiny, fall back to some spacing
+      stepY = 90;
+    }
+  }
 
   const leftX = width * 0.28;
   const rightX = width * 0.72;
@@ -122,7 +132,7 @@ function draw() {
     const x = p.screenX;
     const y = p.screenY;
 
-    // size from % of Grief (0–70)
+    // size from % of Grief
     const size = map(p.griefPercent, 0, 70, 50, 100);
     p.drawSize = size;
 
@@ -344,9 +354,6 @@ function drawLegend() {
   rect(x, y, legendWidth, legendHeight, 16);
 
   // title
-  let prevAlignH = textAlignHoriz;
-  let prevAlignV = textAlignVert;
-
   textAlign(LEFT, TOP);
   fill(55, 65, 81);
   textSize(12);
@@ -393,7 +400,8 @@ function drawLegend() {
   lineY += 16;
   text("• Hold = full journal entry", x + 14, lineY);
 
-  // restore text alignment
+  // restore center alignment for main drawing
   textAlign(CENTER, CENTER);
 }
+
 
