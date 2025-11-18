@@ -1,12 +1,9 @@
-console.log("✅ script.js loaded");
+console.log("✅ script.js loaded (static path version)");
 
 let plants = [];
 let dataLoaded = false;
-
-// for hover state
 let hoveredPlant = null;
 
-// p5 setup
 function setup() {
   const container = document.getElementById("canvas-container");
   const canvas = createCanvas(container.clientWidth, container.clientHeight);
@@ -15,7 +12,7 @@ function setup() {
   textAlign(CENTER, CENTER);
   noStroke();
 
-  loadPlantData(); // kick off d3 load
+  loadPlantData();
 }
 
 function windowResized() {
@@ -26,22 +23,22 @@ function windowResized() {
 function draw() {
   background(9, 9, 18);
 
-  // soft vignette
+  // soft gradient-ish vignette
   noStroke();
-  for (let r = width; r > 0; r -= 40) {
-    let alpha = map(r, 0, width, 200, 0);
+  for (let r = max(width, height); r > 0; r -= 50) {
+    let alpha = map(r, 0, max(width, height), 220, 0);
     fill(15, 23, 42, alpha);
     ellipse(width / 2, height / 2, r, r);
   }
 
-  // title
+  // title + subtitle
   fill(226, 232, 240);
   textSize(20);
   text("The Garden That Remembers", width / 2, 40);
 
   textSize(12);
   fill(148, 163, 184);
-  text("Hover a plant to reveal a memory", width / 2, 64);
+  text("Follow the path of plants to walk through ten days of grief and care.", width / 2, 64);
 
   if (!dataLoaded) {
     textSize(14);
@@ -52,42 +49,62 @@ function draw() {
 
   hoveredPlant = null;
 
-  // polar layout around center
-  const cx = width / 2;
-  const cy = height / 2;
-  const baseRadius = min(width, height) * 0.27;
+  // ---- LAYOUT: static path connected by lines ----
+  // Place plants along a gentle wavy horizontal path
+  const marginX = 100;
+  const xStart = marginX;
+  const xEnd = width - marginX;
+  const baseY = height * 0.55;
+  const waveAmp = 60; // how wiggly the vine is
 
-  plants.forEach((p, i) => {
-    const angle = map(p.Number, 1, plants.length, -HALF_PI, TWO_PI - HALF_PI);
-    const orbitRadius = baseRadius + sin(frameCount * 0.01 + i) * 10;
-
-    const x = cx + orbitRadius * cos(angle);
-    const y = cy + orbitRadius * sin(angle);
+  // Precompute positions for each plant, in Number order
+  const n = plants.length;
+  plants.forEach((p, idx) => {
+    const t = n === 1 ? 0.5 : (p.Number - 1) / (n - 1); // 0..1 along path
+    const x = lerp(xStart, xEnd, t);
+    const y = baseY + sin(t * TWO_PI) * waveAmp;
 
     p.screenX = x;
     p.screenY = y;
+  });
 
-    // size from % of Grief
+  // ---- Draw connecting "vine" line first ----
+  stroke(56, 189, 248, 140); // soft cyan line
+  strokeWeight(3);
+  noFill();
+  beginShape();
+  plants.forEach((p) => {
+    curveVertex(p.screenX, p.screenY);
+  });
+  endShape();
+
+  // ---- Draw plants on top ----
+  plants.forEach((p) => {
+    const x = p.screenX;
+    const y = p.screenY;
+
+    // size from % of Grief (0–70)
     const size = map(p.griefPercent, 0, 70, 18, 40);
 
-    // glow
     const c = stageToColor(p["Grief Stage"]);
-    drawingContext.shadowBlur = 18;
-    drawingContext.shadowColor = color(red(c), green(c), blue(c), 120);
 
-    // base circle
-    fill(red(c), green(c), blue(c), 200);
+    // glow
+    drawingContext.shadowBlur = 18;
+    drawingContext.shadowColor = color(red(c), green(c), blue(c), 130);
+
+    // main bloom
+    fill(red(c), green(c), blue(c), 215);
+    noStroke();
     ellipse(x, y, size, size);
 
     // inner core
     drawingContext.shadowBlur = 0;
-    fill(15, 23, 42, 160);
-    ellipse(x, y, size * 0.5, size * 0.5);
+    fill(15, 23, 42, 180);
+    ellipse(x, y, size * 0.55, size * 0.55);
 
-    // label (only common name)
-    noStroke();
+    // label
     textSize(11);
-    fill(226, 232, 240, 220);
+    fill(226, 232, 240, 230);
     text(p["Plant Name"], x, y + size * 0.9);
 
     // hover detection
@@ -97,32 +114,34 @@ function draw() {
     }
   });
 
-  // subtle highlight ring on hovered plant
+  // highlight ring on hovered plant
   if (hoveredPlant) {
     const x = hoveredPlant.screenX;
     const y = hoveredPlant.screenY;
     const size = map(hoveredPlant.griefPercent, 0, 70, 18, 40);
 
     noFill();
-    stroke(248, 250, 252, 220);
+    stroke(248, 250, 252, 230);
     strokeWeight(2);
-    ellipse(x, y, size + 10, size + 10);
+    ellipse(x, y, size + 12, size + 12);
     noStroke();
   }
 
   updateTooltip();
 }
 
-// d3 data load
+// ---- D3 data load ----
 async function loadPlantData() {
   const data = await d3.csv("plantdata.csv", d3.autoType);
   console.log("raw data:", data);
 
-  plants = data.map((d) => {
-    // parse % of Grief like "10.00%"
+  // ensure sorted by Number ascending
+  const sorted = data.slice().sort((a, b) => a.Number - b.Number);
+
+  plants = sorted.map((d) => {
     let gp = d["% of Grief"];
     if (typeof gp === "string") {
-      gp = parseFloat(gp); // parseFloat handles trailing '%'
+      gp = parseFloat(gp); // handles "10.00%"
     }
     return {
       ...d,
@@ -133,14 +152,13 @@ async function loadPlantData() {
   dataLoaded = true;
 }
 
-// map grief stage -> color
+// ---- map grief stage -> color ----
 function stageToColor(stage) {
-  // adjust to match your CSV values exactly
   switch (stage?.toLowerCase()) {
     case "denial":
       return color(96, 165, 250); // cool blue
     case "anger":
-      return color(248, 113, 113); // red
+      return color(248, 113, 113); // soft red
     case "bargaining":
       return color(45, 212, 191); // teal
     case "depression":
@@ -148,11 +166,11 @@ function stageToColor(stage) {
     case "acceptance":
       return color(250, 204, 21); // warm gold
     default:
-      return color(148, 163, 184); // neutral
+      return color(148, 163, 184); // neutral gray
   }
 }
 
-// tooltip DOM logic
+// ---- tooltip DOM logic ----
 function updateTooltip() {
   const tooltip = document.getElementById("tooltip");
   if (!hoveredPlant) {
@@ -167,14 +185,14 @@ function updateTooltip() {
   const snippetEl = tooltip.querySelector(".snippet");
 
   nameEl.textContent = hoveredPlant["Plant Name"];
+
   stageEl.textContent = `${hoveredPlant["Grief Stage"]} • ${hoveredPlant["% of Grief"]} grief processed`;
 
   const full = hoveredPlant["Journal Entry"] || "";
   const short =
-    full.length > 180 ? full.slice(0, 177).trimEnd() + "..." : full;
+    full.length > 200 ? full.slice(0, 197).trimEnd() + "..." : full;
   snippetEl.textContent = short;
 
-  // position near mouse
   const padding = 14;
   let x = mouseX + 18;
   let y = mouseY + 18;
@@ -189,10 +207,4 @@ function updateTooltip() {
 
   tooltip.style.left = `${x}px`;
   tooltip.style.top = `${y}px`;
-}
-
-
-
-window.onload = function() {
-	loadData();
 }
