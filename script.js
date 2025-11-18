@@ -71,7 +71,7 @@ function draw() {
   textSize(12);
   fill(100, 116, 139);
   text(
-    "Follow the plant path. Hover to see them glow; click to hear them remember.",
+    "Follow the plant path. Click to see a snippet of the story, hold to reveal it all",
     width / 2,
     64
   );
