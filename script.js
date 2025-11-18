@@ -1,4 +1,4 @@
-console.log("✅ script.js loaded (static path + images + interactions)");
+console.log("✅ script.js loaded (zigzag path + images + interactions)");
 
 let plants = [];
 let dataLoaded = false;
@@ -22,7 +22,8 @@ let wateringCanImg = null;
 function preload() {
   // plant images: plant1.png, plant2.png, ... plant10.png
   for (let i = 1; i <= 10; i++) {
-    plantImages[i] = loadImage(`plant${i}.png`, 
+    plantImages[i] = loadImage(
+      `plant${i}.png`,
       () => console.log(`loaded plant${i}.png`),
       () => console.warn(`could not load plant${i}.png`)
     );
@@ -43,7 +44,7 @@ function setup() {
   textFont("system-ui, -apple-system, BlinkMacSystemFont, sans-serif");
   textAlign(CENTER, CENTER);
 
-  noCursor(); // hide default mouse; we’ll draw watering can
+  noCursor(); // hide default cursor; we’ll draw the watering can
 
   loadPlantData();
 }
@@ -87,58 +88,68 @@ function draw() {
 
   hoveredPlant = null;
 
-  // ---- LAYOUT: static wavy path in Number order ----
-  const marginX = 100;
-  const xStart = marginX;
-  const xEnd = width - marginX;
-  const baseY = height * 0.55;
-  const waveAmp = 60;
-
+  // ---- LAYOUT: vertical zigzag path in Number order ----
   const n = plants.length;
 
-  plants.forEach((p) => {
-    const t = n === 1 ? 0.5 : (p.Number - 1) / (n - 1); // 0..1 across the path
-    const x = lerp(xStart, xEnd, t);
-    const y = baseY + sin(t * TWO_PI) * waveAmp;
+  const topMargin = 140;
+  const bottomMargin = 80;
+  const availableHeight = height - topMargin - bottomMargin;
+  const stepY = n > 1 ? max(90, availableHeight / (n - 1)) : 0; // at least 90px apart
+
+  const leftX = width * 0.30;
+  const rightX = width * 0.70;
+
+  // assign positions in array order (already sorted by Number)
+  plants.forEach((p, i) => {
+    const y = topMargin + stepY * i;
+    const x = (i % 2 === 0) ? leftX : rightX; // zigzag: left, right, left, right...
 
     p.screenX = x;
     p.screenY = y;
   });
 
-  // ---- Draw connecting vine ----
-  stroke(56, 189, 248, 140);
+  // ---- VINE: straight lines between plants ----
+  stroke(56, 189, 248, 160); // soft cyan
   strokeWeight(3);
   noFill();
-  beginShape();
-  plants.forEach((p) => {
-    curveVertex(p.screenX, p.screenY);
-  });
-  endShape();
+  for (let i = 0; i < n - 1; i++) {
+    const a = plants[i];
+    const b = plants[i + 1];
+    line(a.screenX, a.screenY, b.screenX, b.screenY);
+  }
 
-  // ---- Draw plants (images instead of circles) ----
+  // ---- Draw plants (images) on top ----
   imageMode(CENTER);
   plants.forEach((p) => {
     const x = p.screenX;
     const y = p.screenY;
 
-    // size based on % of Grief
-    const size = map(p.griefPercent, 0, 70, 40, 90); // pixel width/height
-    p.drawSize = size; // store for hit testing
+    // size from % of Grief
+    const size = map(p.griefPercent, 0, 70, 40, 90);
+    p.drawSize = size;
 
-    // base glow
     const c = stageToColor(p["Grief Stage"]);
+
+    // glow behind image
     noStroke();
     fill(red(c), green(c), blue(c), 60);
     ellipse(x, y, size * 1.2, size * 1.2);
 
-    // plant image
+    // detect hover first for tint
+    const d = dist(mouseX, mouseY, x, y);
+    const isHovered = d < size * 0.5 + 6;
+    if (isHovered) {
+      hoveredPlant = p;
+    }
+
+    // plant image with hover saturation
     const img = plantImages[p.Number];
     push();
-    if (p === hoveredPlant) {
-      // increase saturation/brightness on hover via stronger tint
+    if (isHovered) {
+      // brighter on hover
       tint(255, 255, 255, 255);
     } else {
-      // slightly muted when not hovered
+      // slightly muted at rest
       tint(230, 230, 230, 230);
     }
 
@@ -158,10 +169,7 @@ function draw() {
     text(p["Plant Name"], x, y + size * 0.7);
   });
 
-  // determine hovered plant (do this after positions/sizes are set)
-  hoveredPlant = getPlantUnderMouse();
-
-  // subtle outline on hovered
+  // hover outline
   if (hoveredPlant) {
     const x = hoveredPlant.screenX;
     const y = hoveredPlant.screenY;
@@ -181,6 +189,7 @@ function draw() {
 // ---- Interaction helpers ----
 
 // Return plant under mouse (or null)
+// (used for click + hold detection)
 function getPlantUnderMouse() {
   let hit = null;
   plants.forEach((p) => {
@@ -211,9 +220,9 @@ function mouseReleased() {
     // click or long-press on a plant
     activePlant = pressedPlant;
     if (duration >= LONG_PRESS_MS) {
-      tooltipMode = "full";
+      tooltipMode = "full";    // long hold → full entry
     } else {
-      tooltipMode = "snippet";
+      tooltipMode = "snippet"; // quick click → snippet
     }
   } else {
     // clicked off plants -> close tooltip
@@ -228,7 +237,7 @@ async function loadPlantData() {
   const data = await d3.csv("plantdata.csv", d3.autoType);
   console.log("raw data:", data);
 
-  // sort by Number ascending
+  // sort by Number ascending (1..10)
   const sorted = data.slice().sort((a, b) => a.Number - b.Number);
 
   plants = sorted.map((d) => {
@@ -259,7 +268,7 @@ function stageToColor(stage) {
     case "acceptance":
       return color(250, 204, 21); // gold
     default:
-      return color(148, 163, 184); // neutral
+      return color(148, 163, 184); // neutral gray
   }
 }
 
@@ -287,13 +296,13 @@ function updateTooltip() {
   if (tooltipMode === "full") {
     textContent = full;
   } else {
-    // snippet mode
+    // snippet
     textContent =
       full.length > 200 ? full.slice(0, 197).trimEnd() + "..." : full;
   }
   snippetEl.textContent = textContent;
 
-  // position tooltip near plant (not mouse)
+  // position tooltip near plant
   const padding = 14;
   let x = activePlant.screenX + 20;
   let y = activePlant.screenY - 20;
@@ -314,17 +323,13 @@ function updateTooltip() {
 function drawWateringCan() {
   if (wateringCanImg) {
     imageMode(CENTER);
-    push();
-    // slightly transparent, in case
-    tint(255, 255, 255, 240);
-    const size = 40;
+    noTint();
+    const size = 80; // scale 700x700 down
     image(wateringCanImg, mouseX, mouseY, size, size);
-    pop();
   } else {
     // fallback cursor
     noStroke();
     fill(248, 250, 252);
-    ellipse(mouseX, mouseY, 8, 8);
+    ellipse(mouseX, mouseY, 6, 6);
   }
 }
-
